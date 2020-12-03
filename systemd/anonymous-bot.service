@@ -1,0 +1,15 @@
+[Unit]
+Description=Python Telegram bot
+
+# TEMPLATE
+
+[Service]
+User=
+WorkingDirectory=
+ExecStart=/usr/bin/python3 /path_to_script/.py
+StartLimitBurst=5
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
