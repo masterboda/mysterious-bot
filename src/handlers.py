@@ -22,11 +22,6 @@ from .db import (
 )
 
 from . import markup
-from .markup import (
-    initial_markup,
-    with_receiver_markup,
-    composing_markup
-)
 
 GET_RECEIVER, GET_MESSAGE, READY_TO_SEND = range(3)
 
@@ -35,14 +30,11 @@ GET_RECEIVER, GET_MESSAGE, READY_TO_SEND = range(3)
 def start(cursor, update: Update, context: CallbackContext):
     text_lines = [
         'Hi! I\'m bot for private messaging.',
-        'Enter receiver nickname or share contact to proceed'
+        'Enter a receiver nickname or share contact to proceed:'
     ]
-    text = '\n\n'.join(text_lines)
+    text = '\n'.join(text_lines)
 
-    update.message.reply_text(
-        text,
-        # reply_markup=initial_markup
-    )
+    update.message.reply_text(text)
 
     user = update.effective_user
     user_data = {
