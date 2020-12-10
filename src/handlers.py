@@ -87,33 +87,61 @@ def get_receiver(cursor, update: Update, context: CallbackContext):
 
 
 def get_message(update: Update, context: CallbackContext):
-    context.user_data['message'] = update.message.text
+    context.user_data['message'] = update.message
 
     text = 'Good! Now you can send it by clicking button below'
     update.message.reply_text(
         text,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(markup.SEND, callback_data=1)]
+            [
+                InlineKeyboardButton(markup.SEND, callback_data=markup.SEND),
+                InlineKeyboardButton(markup.CANCEL, callback_data=markup.CANCEL)
+            ]
         ])
     )
 
     return READY_TO_SEND
 
 
+def forward_message(receiver_id, message, context):
+    context.bot.send_message(receiver_id, 'Hey! You have new message:')
+
+    if message.photo:
+        context.bot.send_photo(chat_id=receiver_id, photo=message.photo, caption=message.caption)
+    if message.video:
+        context.bot.send_video(chat_id=receiver_id, video=message.video, caption=message.caption)
+    if message.audio:
+        context.bot.send_audio(chat_id=receiver_id, audio=message.audio, caption=message.caption)
+    if message.document:
+        context.bot.send_document(chat_id=receiver_id, document=message.document, caption=message.caption)
+    if message.sticker:
+        context.bot.send_sticker(chat_id=receiver_id, sticker=message.sticker)
+    if message.voice:
+        context.bot.send_voice(chat_id=receiver_id, voice=message.voice)
+    if message.video_note:
+        context.bot.send_video_note(chat_id=receiver_id, video_note=message.video_note)
+    if message.text:
+        context.bot.send_message(receiver_id, message.text)
+
+
 def send(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
-    try:
-        context.bot.send_message(context.user_data['receiver_id'], 'Hey! You have new message:')
-        context.bot.send_message(context.user_data['receiver_id'], context.user_data['message'])
+    if query.data == markup.SEND:
+        context.bot.send_message(update.effective_user.id, query.data)
+        try:
+            forward_message(context.user_data['receiver_id'], context.user_data['message'], context)
+            query.edit_message_text(text='Congrats! Message successfully sent!')
+        except Exception:
+            print(Exception)
+            query.edit_message_text(text='Sorry, this user is not accessible yet!')
 
-        query.edit_message_text(text='Congrats! Message successfully sent!')
-    except Exception:
-        query.edit_message_text(text='Sorry, this user is not accessible yet!')
+    elif query.data == markup.CANCEL:
+        query.edit_message_text(text='Canceled!')
 
-    del context.user_data['message']
-    del context.user_data['receiver_id']
+    context.user_data.pop('receiver_id', None)
+    context.user_data.pop('message', None)
 
     return GET_RECEIVER
 
