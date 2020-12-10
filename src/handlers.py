@@ -33,6 +33,9 @@ def start(cursor, update: Update, context: CallbackContext):
         'Enter a receiver nickname or share contact to proceed:'
     ]
     text = '\n'.join(text_lines)
+    
+    context.user_data.pop('receiver_id', None)
+    context.user_data.pop('message', None)
 
     update.message.reply_text(text)
 
@@ -134,6 +137,7 @@ conversation_handler = ConversationHandler(
         ]
     },
     fallbacks=[
+        CommandHandler('start', start),
         MessageHandler(Filters.all, other_reply)
     ]
 )
