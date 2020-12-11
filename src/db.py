@@ -36,6 +36,7 @@ def with_db(func):
 def init_db(cursor, reset=False):
     if reset:
         cursor.execute('DROP TABLE IF EXISTS user_data')
+        cursor.execute('DROP TABLE IF EXISTS messages')
 
     cursor.execute(
         """
@@ -44,6 +45,18 @@ def init_db(cursor, reset=False):
             username VARCHAR(64) NULL,
             user_id INTEGER NOT NULL,
             data TEXT NULL
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            receiver_id TEXT NOT NULL,
+            sender TEXT NOT NULL,
+            message TEXT NOT NULL,
+            date DATE
         )
         """
     )

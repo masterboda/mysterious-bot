@@ -123,13 +123,20 @@ def forward_message(receiver_id, message, context):
     if message.text:
         context.bot.send_message(receiver_id, message.text)
 
-
-def send(update: Update, context: CallbackContext):
+@with_db
+def send(cursor, update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
     if query.data == markup.SEND:
-        context.bot.send_message(update.effective_user.id, query.data)
+
+        user = {
+            'id': update.effective_user.id,
+            'username': update.effective_user.username,
+            'name': f'{update.effective_user.first_name} {update.effective_user.last_name}'
+        }
+        cursor.execute('INSERT INTO messages (receiver_id, sender, message) VALUES (?, ?, ?)', (context.user_data['receiver_id'], json.dumps(user), json.dumps(context.user_data['message'].to_dict())))
+
         try:
             forward_message(context.user_data['receiver_id'], context.user_data['message'], context)
             query.edit_message_text(text='Congrats! Message successfully sent!')
