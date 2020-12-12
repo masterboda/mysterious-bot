@@ -7,8 +7,8 @@ from . import config
 
 
 class SQLite:
-    def __init__(self):
-        self.db_file = config.DB_FILE
+    def __init__(self, db_file):
+        self.db_file = db_file
 
     def __enter__(self):
         self.conn = sqlite3.connect(self.db_file)
@@ -21,13 +21,13 @@ class SQLite:
         self.conn.close()
 
 
-def with_db(func):
+def with_db(func, db_file=config.DB_FILE):
     def wrapper(*args, **kwargs):
-        with SQLite() as cursor:
-            # try:
-            return func(cursor, *args, **kwargs)
-            # except Exception as e:
-            #     print('DATABASE ERROR', e)
+        with SQLite(db_file) as cursor:
+            try:
+                return func(cursor, *args, **kwargs)
+            except Exception as e:
+                print('DATABASE ERROR', e)
 
     return wrapper
 
@@ -56,7 +56,8 @@ def init_db(cursor, reset=False):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             receiver_id TEXT NOT NULL,
             sender TEXT NOT NULL,
-            message TEXT NOT NULL,
+            message_id INTEGER NOT NULL,
+            original_message_id INTEGER NULL,
             date DATE
         )
         """

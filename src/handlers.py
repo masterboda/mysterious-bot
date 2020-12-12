@@ -23,7 +23,7 @@ from .db import (
 
 from . import markup
 
-GET_RECEIVER, GET_MESSAGE, READY_TO_SEND = range(3)
+GET_RECEIVER, GET_MESSAGE, GET_REPLY, READY_TO_SEND = range(4)
 
 
 @with_db
@@ -44,21 +44,22 @@ def start(cursor, update: Update, context: CallbackContext):
 
     if not result:
         text_lines = [
-            "Hi! I'm a bot for private messaging.",
-            "To start, you need to send me a receiver nickname (in a separate message) or share contact.",
-            "Then you should compose message which may contain photo/video/voice/sticker etc. But for now I accept only one message per time, so you cannot send media galleries.",
-            "\nHave a good conversation!"
+            "Привіт! Я бот для таємного листування!",
+            "Щоб розпочати, тобі потрібно відправити нікнейм отримувача (окремим повідомленням) або поділитися контактом.",
+            "Далі набираєш повідомлення, яке хочеш відправити (текст, смайли, стікери, фото, відео, GIF...)",
+            "Поки що можна відправити лише одне повідомлення за раз, тому не вдасться надіслати галерею з кількох фото/відео одночасно",
+            "Гарного листування!"
         ]
 
         cursor.execute('INSERT INTO user_data (username, user_id, data) VALUES (?, ?, ?)', (user.username, user.id, json.dumps(user_data)))
     else:
         text_lines = [
-            'Enter a receiver nickname or share contact to proceed:'
+            'Відправ нікнейм отримувача або поділися контакатом, щоб продовжити:'
         ]
 
         cursor.execute('UPDATE user_data SET username = ?, data = ? WHERE user_id = ?', (user.username, json.dumps(user_data), user.id))
 
-    text = '\n'.join(text_lines)
+    text = '\n\n'.join(text_lines)
     update.message.reply_text(text)
 
     return GET_RECEIVER
@@ -70,8 +71,8 @@ def get_receiver(cursor, update: Update, context: CallbackContext):
         user_id = update.message.contact.user_id
         if not user_id:
             lines = [
-                'Sorry, can\'t send by this contact :(',
-                'Try use nickname'
+                'Вибач, не вдається відправити за цим контактом :(',
+                'Спробуй використати нікнейм'
             ]
 
             update.message.reply_text('\n'.join(lines))            
@@ -85,8 +86,8 @@ def get_receiver(cursor, update: Update, context: CallbackContext):
 
         if not result:
             lines = [
-                'Sorry, can\'t find specified user :(',
-                'Try share contact'
+                'Вибач, не можу знайти цього користувача :(',
+                'Спробуй поділитися контактом'
             ]
 
             update.message.reply_text('\n'.join(lines))
@@ -95,7 +96,7 @@ def get_receiver(cursor, update: Update, context: CallbackContext):
 
         context.user_data['receiver_id'] = result['user_id']
 
-    text = 'Compose message:'
+    text = 'Створи повідомлення:'
 
     update.message.reply_text(
         text,
@@ -107,8 +108,9 @@ def get_receiver(cursor, update: Update, context: CallbackContext):
 
 def get_message(update: Update, context: CallbackContext):
     context.user_data['message'] = update.message
+    context.user_data['message_id'] = update.message.message_id
 
-    text = 'Good! Now you can send it by clicking button below'
+    text = 'Чудово! Тепер можеш відправити його або скасувати:'
     update.message.reply_text(
         text,
         reply_markup=InlineKeyboardMarkup([
@@ -122,49 +124,57 @@ def get_message(update: Update, context: CallbackContext):
     return READY_TO_SEND
 
 
-def forward_message(receiver_id, message, context):
-    context.bot.send_message(receiver_id, 'Hey! You have new message:')
+@with_db
+def anonymous_reply(cursor, update: Update, context: CallbackContext):
+    reply_to = update.message.reply_to_message
+    user = update.effective_user
 
-    if message.photo:
-        context.bot.send_photo(chat_id=receiver_id, photo=message.photo[-1].file_id, caption=message.caption)
-    if message.video:
-        context.bot.send_video(chat_id=receiver_id, video=message.video.file_id, caption=message.caption)
-    if message.audio:
-        context.bot.send_audio(chat_id=receiver_id, audio=message.audio.file_id, caption=message.caption)
-    if message.document:
-        context.bot.send_document(chat_id=receiver_id, document=message.document.file_id, caption=message.caption)
-    if message.sticker:
-        context.bot.send_sticker(chat_id=receiver_id, sticker=message.sticker.file_id)
-    if message.voice:
-        context.bot.send_voice(chat_id=receiver_id, voice=message.voice.file_id)
-    if message.video_note:
-        context.bot.send_video_note(chat_id=receiver_id, video_note=message.video_note.file_id)
-    if message.text:
-        context.bot.send_message(receiver_id, message.text)
+    cursor.execute('SELECT * FROM messages WHERE message_id = ?', (reply_to.message_id,))
+    message_data = cursor.fetchone()
+
+    if not message_data:
+        update.message.reply_text('Вибач, не можу надіслати відповідь для цього повідомлення')
+
+        return GET_RECEIVER
+
+    sender = json.loads(message_data['sender'])
+
+    context.bot.send_message(sender['id'], f'Відповідь від { "@" + user.username if user.username else user.full_name }:')
+    context.bot.copy_message(chat_id=sender['id'], from_chat_id=update.effective_chat.id, message_id=update.message.message_id, reply_to_message_id=message_data['original_message_id'])
+
+    update.message.reply_text('Відповідь надіслана!')
+
+    return GET_RECEIVER
+
 
 @with_db
-def send(cursor, update: Update, context: CallbackContext):
+def query_buttons(cursor, update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
+
+    receiver_id, user_message, user_message_id = context.user_data['receiver_id'], context.user_data['message'], context.user_data['message_id']
 
     if query.data == markup.SEND:
 
         user = {
             'id': update.effective_user.id,
             'username': update.effective_user.username,
-            'name': f'{update.effective_user.first_name} {update.effective_user.last_name}'
+            'name': update.effective_user.full_name
         }
-        cursor.execute('INSERT INTO messages (receiver_id, sender, message) VALUES (?, ?, ?)', (context.user_data['receiver_id'], json.dumps(user), json.dumps(context.user_data['message'].to_dict())))
 
         try:
-            forward_message(context.user_data['receiver_id'], context.user_data['message'], context)
-            query.edit_message_text(text='Congrats! Message successfully sent!')
+            context.bot.send_message(receiver_id, 'Привіт, маю нове повідомлення для тебе!')
+            sent = context.bot.copy_message(chat_id=receiver_id, from_chat_id=update.effective_user.id, message_id=user_message_id)
+
+            cursor.execute('INSERT INTO messages (receiver_id, sender, message_id, original_message_id) VALUES (?, ?, ?, ?)', (context.user_data['receiver_id'], json.dumps(user), sent.message_id, user_message_id))
+            
+            query.edit_message_text(text='Вітаю! Повідомлення успішно доставлено!')
         except Exception:
             print(Exception)
-            query.edit_message_text(text='Sorry, this user is not accessible yet!')
+            query.edit_message_text(text='Вибач, цей користувач поки не доступний')
 
     elif query.data == markup.CANCEL:
-        query.edit_message_text(text='Canceled!')
+        query.edit_message_text(text='Скасовано!')
 
     context.user_data.pop('receiver_id', None)
     context.user_data.pop('message', None)
@@ -173,7 +183,7 @@ def send(cursor, update: Update, context: CallbackContext):
 
 
 def other_reply(update: Update, context: CallbackContext):
-    text = "Choose one of the options on the keyboard"
+    text = "Невалідна відповідь!"
     update.message.reply_text(text)
 
 
@@ -181,13 +191,14 @@ conversation_handler = ConversationHandler(
     entry_points=[CommandHandler('start', start)],
     states={
         GET_RECEIVER: [
+            MessageHandler(Filters.reply, anonymous_reply),
             MessageHandler(Filters.all ^ Filters.command, get_receiver)
         ],
         GET_MESSAGE: [
             MessageHandler(Filters.all ^ Filters.command, get_message)
         ],
         READY_TO_SEND: [
-            CallbackQueryHandler(send)
+            CallbackQueryHandler(query_buttons)
         ]
     },
     fallbacks=[
