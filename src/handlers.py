@@ -170,10 +170,10 @@ conversation_handler = ConversationHandler(
     entry_points=[CommandHandler('start', start)],
     states={
         GET_RECEIVER: [
-            MessageHandler(Filters.all, get_receiver)
+            MessageHandler(Filters.all ^ Filters.command, get_receiver)
         ],
         GET_MESSAGE: [
-            MessageHandler(Filters.all, get_message)
+            MessageHandler(Filters.all ^ Filters.command, get_message)
         ],
         READY_TO_SEND: [
             CallbackQueryHandler(send)
