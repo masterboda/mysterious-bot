@@ -28,16 +28,10 @@ GET_RECEIVER, GET_MESSAGE, READY_TO_SEND = range(3)
 
 @with_db
 def start(cursor, update: Update, context: CallbackContext):
-    text_lines = [
-        'Hi! I\'m bot for private messaging.',
-        'Enter a receiver nickname or share contact to proceed:'
-    ]
-    text = '\n'.join(text_lines)
+    text_lines = []
     
     context.user_data.pop('receiver_id', None)
     context.user_data.pop('message', None)
-
-    update.message.reply_text(text)
 
     user = update.effective_user
     user_data = {
@@ -49,9 +43,23 @@ def start(cursor, update: Update, context: CallbackContext):
     result = cursor.fetchone()
 
     if not result:
+        text_lines = [
+            "Hi! I'm a bot for private messaging.",
+            "To start, you need to send me a receiver nickname (in a separate message) or share contact.",
+            "Then you should compose message which may contain photo/video/voice/sticker etc. But for now I accept only one message per time, so you cannot send media galleries.",
+            "\nHave a good conversation!"
+        ]
+
         cursor.execute('INSERT INTO user_data (username, user_id, data) VALUES (?, ?, ?)', (user.username, user.id, json.dumps(user_data)))
     else:
+        text_lines = [
+            'Enter a receiver nickname or share contact to proceed:'
+        ]
+
         cursor.execute('UPDATE user_data SET username = ?, data = ? WHERE user_id = ?', (user.username, json.dumps(user_data), user.id))
+
+    text = '\n'.join(text_lines)
+    update.message.reply_text(text)
 
     return GET_RECEIVER
 
@@ -154,7 +162,7 @@ def send(cursor, update: Update, context: CallbackContext):
 
 
 def other_reply(update: Update, context: CallbackContext):
-    text = "Виберіть один із варіантів на клавіатурі"
+    text = "Choose one of the options on the keyboard"
     update.message.reply_text(text)
 
 

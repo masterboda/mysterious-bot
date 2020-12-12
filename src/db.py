@@ -37,6 +37,7 @@ def init_db(cursor, reset=False):
     if reset:
         cursor.execute('DROP TABLE IF EXISTS user_data')
         cursor.execute('DROP TABLE IF EXISTS messages')
+        cursor.execute('DROP TABLE IF EXISTS permissions')
 
     cursor.execute(
         """
@@ -57,6 +58,16 @@ def init_db(cursor, reset=False):
             sender TEXT NOT NULL,
             message TEXT NOT NULL,
             date DATE
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(64) NOT NULL,
+            label TEXT NOT NULL
         )
         """
     )

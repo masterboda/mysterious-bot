@@ -12,11 +12,11 @@ from telegram.ext import (
     Filters
 )
 
-from src.config import TOKEN
+from src import config
 from src.handlers import conversation_handler
 
 from src.db import (
-    init_db
+    init_db, with_db
 )
 
 """ Logging setup
@@ -25,7 +25,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-updater = Updater(token=TOKEN, use_context=True)
+updater = Updater(token=config.TOKEN, use_context=True)
 
 """ Stop the Bot
 ========================================="""
@@ -44,12 +44,27 @@ def stop(update: telegram.Update, context: CallbackContext):
         update.message.reply_text("You don't have a permission to do this operation!")
 
 
-def main():
-    # Conversation Handlers
-    updater.dispatcher.add_handler(conversation_handler)
+@with_db
+def broadcast(cursor, update: telegram.Update, context: CallbackContext):
+    cursor.execute('SELECT user_id FROM user_data WHERE NOT user_id = ?', (update.effective_user.id,))
+    users = cursor.fetchall()
 
+    message = re.sub(r'^(\s+)?\/broadcast(\s+)?', '', update.message.text)
+
+    for user in users:
+        try:
+            context.bot.send_message(user['user_id'], message)
+            print(f"Sent! user_id: { user['user_id'] }")
+        except Exception:
+            print(f"Send message error!, user_id: { user['user_id'] }")
+
+def main():
     # Command Handlers
     updater.dispatcher.add_handler(CommandHandler('stop', stop))
+    updater.dispatcher.add_handler(CommandHandler('broadcast', broadcast))
+
+    # Conversation Handlers
+    updater.dispatcher.add_handler(conversation_handler)
 
     # Message Handlers
     # ...
