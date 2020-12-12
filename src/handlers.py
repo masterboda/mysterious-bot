@@ -67,7 +67,18 @@ def start(cursor, update: Update, context: CallbackContext):
 @with_db
 def get_receiver(cursor, update: Update, context: CallbackContext):
     if update.message.contact:
-        context.user_data['receiver_id'] = update.message.contact.user_id
+        user_id = update.message.contact.user_id
+        if not user_id:
+            lines = [
+                'Sorry, can\'t send by this contact :(',
+                'Try use nickname'
+            ]
+
+            update.message.reply_text('\n'.join(lines))            
+
+            return GET_RECEIVER
+
+        context.user_data['receiver_id'] = user_id
     else:
         cursor.execute('SELECT * FROM user_data WHERE username = ?', (update.message.text.replace('@', ''),))
         result = cursor.fetchone()
@@ -145,12 +156,12 @@ def send(cursor, update: Update, context: CallbackContext):
         }
         cursor.execute('INSERT INTO messages (receiver_id, sender, message) VALUES (?, ?, ?)', (context.user_data['receiver_id'], json.dumps(user), json.dumps(context.user_data['message'].to_dict())))
 
-        # try:
-        forward_message(context.user_data['receiver_id'], context.user_data['message'], context)
-        query.edit_message_text(text='Congrats! Message successfully sent!')
-        # except Exception:
-        #     print(Exception)
-        #     query.edit_message_text(text='Sorry, this user is not accessible yet!')
+        try:
+            forward_message(context.user_data['receiver_id'], context.user_data['message'], context)
+            query.edit_message_text(text='Congrats! Message successfully sent!')
+        except Exception:
+            print(Exception)
+            query.edit_message_text(text='Sorry, this user is not accessible yet!')
 
     elif query.data == markup.CANCEL:
         query.edit_message_text(text='Canceled!')
