@@ -4,9 +4,10 @@ Description=Python Telegram bot
 # TEMPLATE
 
 [Service]
+Environment=TOKEN=
 User=
 WorkingDirectory=
-ExecStart=/usr/bin/python3 /path_to_script/.py
+ExecStart=/**/mysterious-bot/venv/bin/python /**/mysterious-bot/main.py
 StartLimitBurst=5
 Restart=always
 RestartSec=30
