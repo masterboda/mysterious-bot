@@ -58,6 +58,7 @@ def init_db(cursor, reset=False):
             sender TEXT NOT NULL,
             message_id INTEGER NOT NULL,
             original_message_id INTEGER NULL,
+            is_reply BOOLEAN DEFAULT false,
             date DATE
         )
         """

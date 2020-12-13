@@ -138,9 +138,16 @@ def anonymous_reply(cursor, update: Update, context: CallbackContext):
         return GET_RECEIVER
 
     sender = json.loads(message_data['sender'])
+    user_data = {
+        'id': update.effective_user.id,
+        'username': update.effective_user.username,
+        'name': update.effective_user.full_name
+    }
 
     context.bot.send_message(sender['id'], f'Відповідь від { "@" + user.username if user.username else user.full_name }:')
-    context.bot.copy_message(chat_id=sender['id'], from_chat_id=update.effective_chat.id, message_id=update.message.message_id, reply_to_message_id=message_data['original_message_id'])
+    sent = context.bot.copy_message(chat_id=sender['id'], from_chat_id=update.effective_chat.id, message_id=update.message.message_id, reply_to_message_id=message_data['original_message_id'])
+    
+    cursor.execute('INSERT INTO messages (receiver_id, sender, message_id, original_message_id, is_reply) VALUES (?, ?, ?, ?, ?)', (sender['id'], json.dumps(user_data), sent.message_id, update.message.message_id, True))
 
     update.message.reply_text('Відповідь надіслана!')
 
