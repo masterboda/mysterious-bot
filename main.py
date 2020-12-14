@@ -44,6 +44,10 @@ def stop(update: telegram.Update, context: CallbackContext):
         update.message.reply_text("You don't have a permission to do this operation!")
 
 
+def restart_fallback(update: telegram.Update, context: CallbackContext):
+    update.message.reply_text("Бот оновився, щоб відновити роботу - натисни /start")
+
+
 @with_db
 def broadcast(cursor, update: telegram.Update, context: CallbackContext):
     cursor.execute('SELECT user_id FROM user_data WHERE NOT user_id = ?', (update.effective_user.id,))
@@ -58,6 +62,7 @@ def broadcast(cursor, update: telegram.Update, context: CallbackContext):
         except Exception:
             print(f"Send message error!, user_id: { user['user_id'] }")
 
+
 def main():
     # Command Handlers
     updater.dispatcher.add_handler(CommandHandler('stop', stop))
@@ -67,7 +72,7 @@ def main():
     updater.dispatcher.add_handler(conversation_handler)
 
     # Message Handlers
-    # ...
+    updater.dispatcher.add_handler(MessageHandler(Filters.all, restart_fallback))
 
     init_db()
 
