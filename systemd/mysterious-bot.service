@@ -5,6 +5,7 @@ Description=Python Telegram bot
 
 [Service]
 Environment=TOKEN=
+Environment=PROJECT_HOME=
 User=
 WorkingDirectory=
 ExecStart=/**/mysterious-bot/venv/bin/python /**/mysterious-bot/main.py

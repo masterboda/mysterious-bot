@@ -45,7 +45,9 @@ def init_db(cursor, reset=False):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username VARCHAR(64) NULL,
             user_id INTEGER NOT NULL,
-            data TEXT NULL
+            permissions TEXT NULL,
+            data TEXT NULL,
+            date DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
@@ -59,7 +61,7 @@ def init_db(cursor, reset=False):
             message_id INTEGER NOT NULL,
             original_message_id INTEGER NULL,
             is_reply BOOLEAN DEFAULT false,
-            date DATE
+            date DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
